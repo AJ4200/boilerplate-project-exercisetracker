@@ -28,9 +28,9 @@ app.post("/api/users", (req, res) => {
 });
 
 app.get("/api/users", (req, res) => {
-  // Ensure that each element in the array has both username and _id properties
-  const usersData = users.map(({ username, _id }) => ({ username, _id }));
-  res.json(usersData);
+
+  const user = users.map(({ username, _id }) => ({ username, _id }));
+  res.json(user);
 });
 
 app.post("/api/users/:_id/exercises", (req, res) => {
