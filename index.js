@@ -2,123 +2,97 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const bodyParser = require("body-parser");
-const mongoose = require("mongoose");
-const { Schema } = mongoose;
 
 app.use(cors());
 app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-
-const userSchema = new Schema({
-  username: { type: String, required: true },
-});
-
-const exerciseSchema = new Schema({
-  userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-  description: { type: String, required: true },
-  duration: { type: Number, required: true },
-  date: { type: Date, default: Date.now },
-});
-
-const User = mongoose.model("User", userSchema);
-const Exercise = mongoose.model("Exercise", exerciseSchema);
+const users = [];
+const exercises = [];
 
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/views/index.html");
 });
 
-app.post("/api/users", async (req, res) => {
+app.post("/api/users", (req, res) => {
   const { username } = req.body;
-  try {
-    const newUser = await User.create({ username });
-    res.json({ username: newUser.username, _id: newUser._id });
-  } catch (error) {
-    res.json({ error: "Error creating user" });
-  }
+  const user = { username, _id: users.length + 1 };
+  users.push(user);
+  res.json(user);
 });
 
-app.get("/api/users", async (req, res) => {
-  try {
-    const users = await User.find({}, "username _id");
-    res.json(users);
-  } catch (error) {
-    res.json({ error: "Error fetching users" });
-  }
+app.get("/api/users", (req, res) => {
+  res.json(users);
 });
 
-app.post("/api/users/:_id/exercises", async (req, res) => {
+app.post("/api/users/:_id/exercises", (req, res) => {
   const { _id } = req.params;
   const { description, duration, date } = req.body;
 
-  try {
-    const user = await User.findById(_id);
-    if (!user) {
-      return res.json({ error: "User not found" });
-    }
+  const user = users.find((u) => u._id === parseInt(_id));
 
-    const exercise = await Exercise.create({
-      userId: user._id,
-      description,
-      duration,
-      date: date ? new Date(date) : undefined,
-    });
-
-    res.json({
-      username: user.username,
-      _id: user._id,
-      description: exercise.description,
-      duration: exercise.duration,
-      date: exercise.date.toDateString(),
-    });
-  } catch (error) {
-    res.json({ error: "Error adding exercise" });
+  if (!user) {
+    return res.json({ error: "User not found" });
   }
+
+  const exercise = {
+    userId: user._id,
+    description,
+    duration,
+    date: date ? new Date(date) : new Date(),
+  };
+
+  exercises.push(exercise);
+
+  res.json({
+    username: user.username,
+    _id: user._id,
+    description: exercise.description,
+    duration: exercise.duration,
+    date: exercise.date.toDateString(),
+  });
 });
 
-app.get("/api/users/:_id/logs", async (req, res) => {
+app.get("/api/users/:_id/logs", (req, res) => {
   const { _id } = req.params;
   const { from, to, limit } = req.query;
 
-  try {
-    const user = await User.findById(_id);
-    if (!user) {
-      return res.json({ error: "User not found" });
-    }
+  const user = users.find((u) => u._id === parseInt(_id));
 
-    let exercisesQuery = { userId: user._id };
-
-    if (from || to) {
-      exercisesQuery.date = {};
-      if (from) exercisesQuery.date.$gte = new Date(from);
-      if (to) exercisesQuery.date.$lte = new Date(to);
-    }
-
-    let exercises = await Exercise.find(exercisesQuery)
-      .limit(parseInt(limit) || undefined)
-      .sort("-date")
-      .select("description duration date");
-
-    exercises = exercises.map((exercise) => ({
-      description: exercise.description,
-      duration: exercise.duration,
-      date: exercise.date.toDateString(),
-    }));
-
-    res.json({
-      _id: user._id,
-      username: user.username,
-      count: exercises.length,
-      log: exercises,
-    });
-  } catch (error) {
-    res.json({ error: "Error fetching exercise log" });
+  if (!user) {
+    return res.json({ error: "User not found" });
   }
+
+  let userExercises = exercises.filter((e) => e.userId === user._id);
+
+  if (from || to) {
+    userExercises = userExercises.filter((e) => {
+      const exerciseDate = new Date(e.date).getTime();
+      return (
+        (!from || exerciseDate >= new Date(from).getTime()) &&
+        (!to || exerciseDate <= new Date(to).getTime())
+      );
+    });
+  }
+
+  userExercises = userExercises.slice(
+    0,
+    parseInt(limit) || userExercises.length
+  );
+
+  const log = userExercises.map((e) => ({
+    description: e.description,
+    duration: e.duration,
+    date: e.date.toDateString(),
+  }));
+
+  res.json({
+    _id: user._id,
+    username: user.username,
+    count: log.length,
+    log,
+  });
 });
 
 const listener = app.listen(process.env.PORT || 3000, () => {
