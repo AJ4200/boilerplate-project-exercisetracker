@@ -28,10 +28,10 @@ app.post("/api/users", (req, res) => {
 });
 
 app.get("/api/users", (req, res) => {
-
-  const user = users.map(({ username, _id }) => ({ username, _id }));
+  const user = users.map(({  _id, username }) => ({ _id, username}));
   res.json(user);
 });
+
 
 app.post("/api/users/:_id/exercises", (req, res) => {
   const { _id } = req.params;
