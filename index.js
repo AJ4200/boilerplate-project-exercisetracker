@@ -17,13 +17,18 @@ app.get("/", (req, res) => {
 
 app.post("/api/users", (req, res) => {
   const { username } = req.body;
+
+  if (!username) {
+    return res.json({ error: "Username is required" });
+  }
+
   const user = { username, _id: users.length + 1 };
   users.push(user);
   res.json(user);
 });
 
 app.get("/api/users", (req, res) => {
-  res.json(users);
+  res.json(users.map(({ username, _id }) => ({ username, _id })));
 });
 
 app.post("/api/users/:_id/exercises", (req, res) => {
@@ -39,15 +44,15 @@ app.post("/api/users/:_id/exercises", (req, res) => {
   const exercise = {
     userId: user._id,
     description,
-    duration,
+    duration: parseInt(duration),
     date: date ? new Date(date) : new Date(),
   };
 
   exercises.push(exercise);
 
   res.json({
-    username: user.username,
     _id: user._id,
+    username: user.username,
     description: exercise.description,
     duration: exercise.duration,
     date: exercise.date.toDateString(),
