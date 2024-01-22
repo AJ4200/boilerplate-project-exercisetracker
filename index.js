@@ -22,22 +22,21 @@ app.post("/api/users", (req, res) => {
     return res.json({ error: "Username is required" });
   }
 
-  const user = { username, _id: users.length + 1 };
+  const user = { username, _id: (users.length + 1).toString() }; // Convert _id to string
   users.push(user);
   res.json(user);
 });
 
 app.get("/api/users", (req, res) => {
-  const user = users.map(({  _id, username }) => ({ _id, username}));
+  const user = users.map(({ username, _id }) => ({ username, _id }));
   res.json(user);
 });
-
 
 app.post("/api/users/:_id/exercises", (req, res) => {
   const { _id } = req.params;
   const { description, duration, date } = req.body;
 
-  const user = users.find((u) => u._id === parseInt(_id));
+  const user = users.find((u) => u._id === _id); // Search without parseInt
 
   if (!user) {
     return res.json({ error: "User not found" });
@@ -65,7 +64,7 @@ app.get("/api/users/:_id/logs", (req, res) => {
   const { _id } = req.params;
   const { from, to, limit } = req.query;
 
-  const user = users.find((u) => u._id === parseInt(_id));
+  const user = users.find((u) => u._id === _id); // Search without parseInt
 
   if (!user) {
     return res.json({ error: "User not found" });
